@@ -3,48 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Paint App</title>
+    <title>Mobile Paint App V2</title>
     <style>
         * {
             box-sizing: border-box;
-            user-select: none; /* Prevent text selection */
+            user-select: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
-            overflow: hidden; /* Prevent scrolling */
+            overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            
+            /* --- THE FIX START --- */
+            /* Use dvh (Dynamic Viewport Height) to account for mobile browser bars */
+            height: 100vh; 
+            height: 100dvh; 
+            /* --- THE FIX END --- */
         }
 
         /* --- Canvas Area --- */
         #canvas-container {
-            flex-grow: 1;
+            flex: 1; /* Takes up all remaining space */
             position: relative;
             background-color: #ffffff;
             cursor: crosshair;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
 
         canvas {
             display: block;
-            touch-action: none; /* Critical for mobile drawing */
+            touch-action: none;
         }
 
         /* --- Controls Area --- */
         .toolbar {
-            background-color: #333;
+            background-color: #222;
             color: white;
-            padding: 10px;
+            padding: 10px 10px;
+            
+            /* --- THE FIX START --- */
+            /* Add padding for the iPhone/Android home bar area */
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            flex-shrink: 0; /* Prevents toolbar from getting squashed */
+            /* --- THE FIX END --- */
+            
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            z-index: 10;
+            gap: 12px;
+            z-index: 100;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
         }
 
         .row {
@@ -54,32 +69,41 @@
             gap: 8px;
         }
 
-        /* Scrollable row for small screens if needed */
         .scroll-row {
             overflow-x: auto;
             white-space: nowrap;
-            padding-bottom: 5px;
+            padding-bottom: 2px;
+            /* Hide scrollbar but keep functionality */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .scroll-row::-webkit-scrollbar {
+            display: none;
         }
 
         /* Buttons & Inputs */
-        button, .color-btn {
+        button {
             border: none;
             outline: none;
             cursor: pointer;
             border-radius: 8px;
-            transition: transform 0.1s;
+            font-family: inherit;
         }
 
         button:active, .color-btn:active {
             transform: scale(0.95);
+            opacity: 0.8;
         }
 
         /* Color Palette */
         .color-btn {
-            width: 35px;
-            height: 35px;
-            border: 2px solid #555;
+            width: 40px; /* Slightly bigger touch target */
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #444;
             display: inline-block;
+            flex-shrink: 0;
+            margin-right: 5px;
         }
 
         .color-btn.active {
@@ -88,34 +112,26 @@
             box-shadow: 0 0 8px rgba(255,255,255,0.5);
         }
 
-        /* Utility Buttons (Save, Clear) */
-        .btn-util {
-            padding: 8px 12px;
-            background-color: #555;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        
-        /* Tool Groups (Brush/Eraser/Size/Type) */
+        /* Tool Groups */
         .tool-group {
             display: flex;
-            background: #444;
-            border-radius: 8px;
-            padding: 4px;
+            background: #333;
+            border-radius: 12px;
+            padding: 3px;
         }
 
         .tool-btn {
             background: transparent;
             color: #aaa;
-            padding: 8px 12px;
+            padding: 10px 14px; /* Larger touch target */
             font-size: 14px;
+            font-weight: 500;
         }
 
         .tool-btn.active {
-            background-color: #666;
+            background-color: #555;
             color: white;
-            border-radius: 6px;
+            border-radius: 9px;
         }
 
         /* Size Indicators */
@@ -124,6 +140,19 @@
             border-radius: 50%;
             display: inline-block;
         }
+
+        /* Action Buttons (Save, Clear) */
+        .action-btn {
+            flex: 1; /* Make them share full width */
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+        
+        .btn-clear { background-color: #444; color: #ff6b6b; }
+        .btn-save { background-color: #007AFF; color: white; }
+
     </style>
 </head>
 <body>
@@ -134,21 +163,25 @@
 
     <div class="toolbar">
         
-        <div class="row scroll-row" id="colorContainer">
+        <div class="row scroll-row">
             <div class="color-btn active" style="background-color: #000000;" data-color="#000000"></div>
-            <div class="color-btn" style="background-color: #FF3B30;" data-color="#FF3B30"></div> <div class="color-btn" style="background-color: #FFCC00;" data-color="#FFCC00"></div> <div class="color-btn" style="background-color: #34C759;" data-color="#34C759"></div> <div class="color-btn" style="background-color: #007AFF;" data-color="#007AFF"></div> <div class="color-btn" style="background-color: #AF52DE;" data-color="#AF52DE"></div> </div>
+            <div class="color-btn" style="background-color: #FF3B30;" data-color="#FF3B30"></div>
+            <div class="color-btn" style="background-color: #FF9500;" data-color="#FF9500"></div> <div class="color-btn" style="background-color: #FFCC00;" data-color="#FFCC00"></div>
+            <div class="color-btn" style="background-color: #34C759;" data-color="#34C759"></div>
+            <div class="color-btn" style="background-color: #007AFF;" data-color="#007AFF"></div>
+            <div class="color-btn" style="background-color: #AF52DE;" data-color="#AF52DE"></div>
+        </div>
 
         <div class="row">
             <div class="tool-group">
-                <button class="tool-btn active" onclick="setBrushStyle('round')" title="Round Pen">Pen</button>
-                <button class="tool-btn" onclick="setBrushStyle('square')" title="Square Chisel">Flat</button>
-                <button class="tool-btn" onclick="setBrushStyle('marker')" title="Semi-transparent">Ink</button>
+                <button class="tool-btn" onclick="setLineWidth(4)"><span class="size-dot" style="width: 4px; height: 4px;"></span></button>
+                <button class="tool-btn active" onclick="setLineWidth(10)"><span class="size-dot" style="width: 8px; height: 8px;"></span></button>
+                <button class="tool-btn" onclick="setLineWidth(20)"><span class="size-dot" style="width: 14px; height: 14px;"></span></button>
             </div>
 
             <div class="tool-group">
-                <button class="tool-btn" onclick="setLineWidth(5)"><span class="size-dot" style="width: 4px; height: 4px;"></span></button>
-                <button class="tool-btn active" onclick="setLineWidth(10)"><span class="size-dot" style="width: 8px; height: 8px;"></span></button>
-                <button class="tool-btn" onclick="setLineWidth(20)"><span class="size-dot" style="width: 14px; height: 14px;"></span></button>
+                <button class="tool-btn active" onclick="setBrushStyle('round')">Pen</button>
+                <button class="tool-btn" onclick="setBrushStyle('marker')">Ink</button>
             </div>
             
              <div class="tool-group">
@@ -157,8 +190,8 @@
         </div>
 
         <div class="row">
-            <button class="btn-util" onclick="clearCanvas()">Clear</button>
-            <button class="btn-util" style="background-color: #007AFF;" onclick="saveImage()">Save JPG</button>
+            <button class="action-btn btn-clear" onclick="clearCanvas()">Clear</button>
+            <button class="action-btn btn-save" onclick="saveImage()">Save</button>
         </div>
     </div>
 
@@ -167,58 +200,61 @@
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
         
-        // State
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
         
-        // Default Settings
         let currentSize = 10;
         let currentColor = '#000000';
-        let currentLineCap = 'round'; // round, square, butt
-        let isMarkerMode = false;     // for transparency effect
+        let currentLineCap = 'round'; 
+        let isMarkerMode = false;
         let isEraser = false;
 
-        // --- Initialization ---
         function resizeCanvas() {
-            // Save current image data to prevent loss on resize
-            const savedImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
+            // Create a temporary canvas to hold the image
+            let tempCanvas = document.createElement('canvas');
+            let tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Resize actual canvas
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
             
-            // Fill white background immediately (needed for JPG save)
+            // Refill background
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Attempt to restore image (basic implementation)
-            // Note: On significant resize/rotate, this might clip or center. 
-            // For a simple app, we just redraw the white bg.
-             ctx.putImageData(savedImage, 0, 0);
+            // Put image back
+            ctx.drawImage(tempCanvas, 0, 0);
         }
 
-        window.addEventListener('load', () => {
+        // Initialize
+        window.onload = function() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-            // Set initial white background
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+        };
+        
+        // Listen for resize (orientation change)
+        window.addEventListener('resize', () => {
+             // Small delay to let the browser layout settle
+             setTimeout(resizeCanvas, 100);
         });
-        
-        window.addEventListener('resize', resizeCanvas);
 
-        // --- Input Handling (Touch & Mouse) ---
-        
+        // --- Drawing Logic ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            // Check if it's a touch event
+            // Touch
             if (e.touches && e.touches.length > 0) {
                 return {
                     x: e.touches[0].clientX - rect.left,
                     y: e.touches[0].clientY - rect.top
                 };
             }
-            // Fallback to mouse
+            // Mouse
             return {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
@@ -230,40 +266,32 @@
             const pos = getPos(e);
             lastX = pos.x;
             lastY = pos.y;
-            draw(e); // Draw a dot immediately
+            draw(e); 
         }
 
         function stopDrawing() {
             isDrawing = false;
-            ctx.beginPath(); // Reset path so lines don't connect weirdly
+            ctx.beginPath();
         }
 
         function draw(e) {
             if (!isDrawing) return;
-            
-            // Prevent scrolling on mobile
-            if(e.cancelable) e.preventDefault();
+            if(e.cancelable) e.preventDefault(); 
 
             const pos = getPos(e);
 
             ctx.lineWidth = currentSize;
-            ctx.lineCap = currentLineCap; // round, square, or butt
-            ctx.lineJoin = currentLineCap; // smooths corners for round
+            ctx.lineCap = currentLineCap; 
+            ctx.lineJoin = 'round'; 
 
             if (isEraser) {
-                ctx.strokeStyle = "#FFFFFF"; // Erase by painting white
+                ctx.strokeStyle = "#FFFFFF";
                 ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
             } else {
                 ctx.strokeStyle = currentColor;
-                // Marker effect: lower opacity
                 ctx.globalAlpha = isMarkerMode ? 0.05 : 1.0; 
-                
-                // If marker, we force 'round' usually looks best, but let user choose
-                if(isMarkerMode) {
-                   ctx.globalCompositeOperation = 'multiply'; // nice blending
-                } else {
-                   ctx.globalCompositeOperation = 'source-over'; // standard
-                }
+                ctx.globalCompositeOperation = isMarkerMode ? 'multiply' : 'source-over';
             }
 
             ctx.beginPath();
@@ -275,107 +303,76 @@
             lastY = pos.y;
         }
 
-        // Event Listeners
+        // --- Event Listeners ---
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-
+        
         canvas.addEventListener('touchstart', startDrawing, { passive: false });
         canvas.addEventListener('touchmove', draw, { passive: false });
         canvas.addEventListener('touchend', stopDrawing);
 
         // --- Tools Logic ---
-
-        // Color Picker
         document.querySelectorAll('.color-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Turn off eraser if a color is picked
+            btn.addEventListener('click', function() {
                 isEraser = false;
                 document.getElementById('eraserBtn').classList.remove('active');
                 
-                // Set Color
-                currentColor = btn.getAttribute('data-color');
+                currentColor = this.getAttribute('data-color');
                 
-                // UI update
                 document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                this.classList.add('active');
             });
         });
 
-        // Brush Thickness
         function setLineWidth(size) {
             currentSize = size;
-            // UI logic to highlight active size button would go here
-            // (Simplified: relies on visually checking stroke)
+            // Visual Update
+            const btns = document.querySelectorAll('button[onclick^="setLineWidth"]');
+            btns.forEach(b => b.classList.remove('active'));
+            // Find button that matches this size call (simple check)
+            btns.forEach(b => {
+                if(b.getAttribute('onclick').includes(size)) b.classList.add('active');
+            });
         }
 
-        // Brush Style
         function setBrushStyle(style) {
             isMarkerMode = false;
-            ctx.globalCompositeOperation = 'source-over';
-
             if (style === 'round') {
                 currentLineCap = 'round';
-            } else if (style === 'square') {
-                currentLineCap = 'square';
             } else if (style === 'marker') {
                 currentLineCap = 'round';
                 isMarkerMode = true;
             }
             
-            // Turn off eraser if brush style changes
+            const btns = document.querySelectorAll('button[onclick^="setBrushStyle"]');
+            btns.forEach(b => b.classList.remove('active'));
+            btns.forEach(b => {
+                if(b.getAttribute('onclick').includes(style)) b.classList.add('active');
+            });
+
             if(isEraser) toggleEraser();
         }
 
-        // Eraser
         function toggleEraser() {
             isEraser = !isEraser;
             const btn = document.getElementById('eraserBtn');
-            if (isEraser) {
-                btn.classList.add('active');
-                ctx.globalCompositeOperation = 'source-over'; // Reset blending for eraser
-            } else {
-                btn.classList.remove('active');
-            }
+            btn.classList.toggle('active', isEraser);
         }
 
-        // Clear Canvas
         function clearCanvas() {
-            if (confirm('Clear drawing?')) {
+            if (confirm('Clear entire drawing?')) {
                 ctx.fillStyle = "#FFFFFF";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
         }
 
-        // Save Image
         function saveImage() {
-            // Create a temporary link
             const link = document.createElement('a');
-            link.download = 'my-drawing.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 0.9); // 0.9 quality
+            link.download = 'art_' + Date.now() + '.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
         }
-
-        // --- Helper for Thickness UI ---
-        // Add click handlers to thickness buttons to manage 'active' class
-        const sizeBtns = document.querySelectorAll('.tool-group button[onclick^="setLineWidth"]');
-        sizeBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                sizeBtns.forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
-        // Add click handlers to style buttons
-        const styleBtns = document.querySelectorAll('.tool-group button[onclick^="setBrushStyle"]');
-        styleBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                styleBtns.forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
     </script>
 </body>
 </html>
