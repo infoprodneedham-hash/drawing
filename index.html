@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Paint App V3</title>
+    <title>Mobile Paint App V4</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,7 +20,6 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
-            /* Dynamic height to fix mobile bar issues */
             height: 100vh;
             height: 100dvh; 
         }
@@ -32,7 +31,7 @@
             background-color: #ffffff;
             cursor: crosshair;
             overflow: hidden;
-            border-radius: 0 0 15px 15px; /* Slight rounded corner at bottom */
+            border-radius: 0 0 15px 15px;
         }
 
         canvas {
@@ -196,7 +195,7 @@
         let brushType = 'round'; // round, calligraphy, marker
         let isEraser = false;
 
-        // --- Setup & Resize ---
+        // --- Setup ---
         function initCanvas() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
@@ -206,7 +205,6 @@
 
         window.addEventListener('load', initCanvas);
         window.addEventListener('resize', () => {
-            // Simple debounce to prevent lagging while resizing window
             setTimeout(() => {
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = canvas.width;
@@ -225,19 +223,15 @@
         // --- Input Handling ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            let clientX, clientY;
-            
+            let cx, cy;
             if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
+                cx = e.touches[0].clientX;
+                cy = e.touches[0].clientY;
             } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+                cx = e.clientX;
+                cy = e.clientY;
             }
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
+            return { x: cx - rect.left, y: cy - rect.top };
         }
 
         function startDrawing(e) {
@@ -259,11 +253,10 @@
 
             const pos = getPos(e);
             
-            // Context settings based on mode
+            // 1. Eraser Logic
             if (isEraser) {
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = "#FFFFFF";
-                ctx.fillStyle = "#FFFFFF";
                 ctx.globalAlpha = 1.0;
                 ctx.lineWidth = currentSize;
                 ctx.lineCap = 'round';
@@ -273,49 +266,39 @@
                 ctx.moveTo(lastX, lastY);
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
-
-            } else {
-                // Set Color & Opacity
+            } 
+            // 2. Brush Logic
+            else {
                 ctx.fillStyle = currentColor;
                 ctx.strokeStyle = currentColor;
 
                 if (brushType === 'marker') {
-                    ctx.globalCompositeOperation = 'multiply'; // Layers colors
-                    ctx.globalAlpha = 0.2; // INCREASED VISIBILITY
+                    ctx.globalCompositeOperation = 'multiply'; 
+                    ctx.globalAlpha = 0.2; // Opacity increased to 20%
                 } else {
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.globalAlpha = 1.0;
                 }
 
-                // --- Drawing Logic per Brush Type ---
-                
                 if (brushType === 'calligraphy') {
-                    // Custom Logic for Diagonal Calligraphy Nib
-                    // We draw a polygon connecting the previous diagonal to the new diagonal
-                    const angle = -45 * (Math.PI / 180); // Fixed 45 degree angle
-                    const halfW = currentSize; // Thickness
-                    
+                    // Calligraphy Nib Calculation
+                    const angle = -45 * (Math.PI / 180); 
+                    const halfW = currentSize;
                     const dx = Math.cos(angle) * halfW;
                     const dy = Math.sin(angle) * halfW;
 
                     ctx.beginPath();
-                    // 1. Start at previous top-left
                     ctx.moveTo(lastX - dx, lastY - dy);
-                    // 2. Go to new top-left
                     ctx.lineTo(pos.x - dx, pos.y - dy);
-                    // 3. Go to new bottom-right
                     ctx.lineTo(pos.x + dx, pos.y + dy);
-                    // 4. Go to previous bottom-right
                     ctx.lineTo(lastX + dx, lastY + dy);
                     ctx.closePath();
                     ctx.fill();
-
                 } else {
-                    // Standard Round Pen or Marker
+                    // Standard Round / Marker
                     ctx.lineWidth = currentSize;
-                    ctx.lineCap = brushType === 'marker' ? 'round' : 'round';
+                    ctx.lineCap = 'round';
                     ctx.lineJoin = 'round';
-
                     ctx.beginPath();
                     ctx.moveTo(lastX, lastY);
                     ctx.lineTo(pos.x, pos.y);
@@ -337,45 +320,39 @@
         canvas.addEventListener('touchmove', draw, { passive: false });
         canvas.addEventListener('touchend', stopDrawing);
 
-        // --- Button Logic ---
-        
-        // 1. Colors
+        // --- Buttons ---
         document.querySelectorAll('.color-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 isEraser = false;
                 document.getElementById('eraserBtn').classList.remove('active');
                 currentColor = this.getAttribute('data-color');
-                
-                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
+                updateActiveButton(this);
             });
         });
 
-        // 2. Clear Canvas (Direct Event Listener)
+        // CLEAR FIX: Force reset blending mode before clearing
         document.getElementById('clearBtn').addEventListener('click', () => {
-             // Removed "confirm" dialog to fix mobile issues
+             ctx.globalCompositeOperation = 'source-over'; // <--- THIS FIXES THE BUG
              ctx.fillStyle = "#FFFFFF";
              ctx.fillRect(0, 0, canvas.width, canvas.height);
         });
 
-        // 3. Save Image
         window.saveImage = function() {
             const link = document.createElement('a');
-            link.download = 'art_' + new Date().getTime() + '.jpg';
+            link.download = 'drawing.jpg';
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
         }
 
-        // 4. Tool Helpers
         window.setLineWidth = function(size) {
             currentSize = size;
-            updateActiveButton('setLineWidth', size);
+            updateToolUI('setLineWidth', size);
         }
 
         window.setBrushStyle = function(style) {
             brushType = style;
-            if(isEraser) toggleEraser(); // Turn off eraser if switching brush
-            updateActiveButton('setBrushStyle', style);
+            if(isEraser) toggleEraser(); 
+            updateToolUI('setBrushStyle', style);
         }
 
         window.toggleEraser = function() {
@@ -383,15 +360,17 @@
             document.getElementById('eraserBtn').classList.toggle('active', isEraser);
         }
 
-        // Helper to update UI classes
-        function updateActiveButton(funcName, val) {
+        // Helpers
+        function updateActiveButton(activeBtn) {
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            activeBtn.classList.add('active');
+        }
+
+        function updateToolUI(funcName, val) {
             const btns = document.querySelectorAll(`button[onclick^="${funcName}"]`);
             btns.forEach(b => b.classList.remove('active'));
             btns.forEach(b => {
-                if(b.getAttribute('onclick').includes(`'${val}'`) || 
-                   b.getAttribute('onclick').includes(`(${val})`)) {
-                    b.classList.add('active');
-                }
+                if(b.getAttribute('onclick').includes(val)) b.classList.add('active');
             });
         }
     </script>
