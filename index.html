@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Paint App V2</title>
+    <title>Mobile Paint App V3</title>
     <style>
         * {
             box-sizing: border-box;
@@ -15,27 +15,24 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #f0f0f0;
+            background-color: #222;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
-            
-            /* --- THE FIX START --- */
-            /* Use dvh (Dynamic Viewport Height) to account for mobile browser bars */
-            height: 100vh; 
+            /* Dynamic height to fix mobile bar issues */
+            height: 100vh;
             height: 100dvh; 
-            /* --- THE FIX END --- */
         }
 
         /* --- Canvas Area --- */
         #canvas-container {
-            flex: 1; /* Takes up all remaining space */
+            flex: 1;
             position: relative;
             background-color: #ffffff;
             cursor: crosshair;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
             overflow: hidden;
+            border-radius: 0 0 15px 15px; /* Slight rounded corner at bottom */
         }
 
         canvas {
@@ -47,19 +44,13 @@
         .toolbar {
             background-color: #222;
             color: white;
-            padding: 10px 10px;
-            
-            /* --- THE FIX START --- */
-            /* Add padding for the iPhone/Android home bar area */
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
-            flex-shrink: 0; /* Prevents toolbar from getting squashed */
-            /* --- THE FIX END --- */
-            
+            padding: 10px;
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
             z-index: 100;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
         }
 
         .row {
@@ -73,43 +64,36 @@
             overflow-x: auto;
             white-space: nowrap;
             padding-bottom: 2px;
-            /* Hide scrollbar but keep functionality */
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        .scroll-row::-webkit-scrollbar {
-            display: none;
-        }
+        .scroll-row::-webkit-scrollbar { display: none; }
 
-        /* Buttons & Inputs */
         button {
             border: none;
             outline: none;
             cursor: pointer;
             border-radius: 8px;
             font-family: inherit;
+            transition: transform 0.1s, opacity 0.1s;
         }
 
-        button:active, .color-btn:active {
-            transform: scale(0.95);
-            opacity: 0.8;
-        }
+        button:active { transform: scale(0.95); opacity: 0.8; }
 
         /* Color Palette */
         .color-btn {
-            width: 40px; /* Slightly bigger touch target */
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            border: 2px solid #444;
+            border: 2px solid #555;
             display: inline-block;
             flex-shrink: 0;
-            margin-right: 5px;
+            margin-right: 8px;
         }
-
         .color-btn.active {
             border: 3px solid white;
             transform: scale(1.1);
-            box-shadow: 0 0 8px rgba(255,255,255,0.5);
+            box-shadow: 0 0 10px rgba(255,255,255,0.4);
         }
 
         /* Tool Groups */
@@ -123,34 +107,35 @@
         .tool-btn {
             background: transparent;
             color: #aaa;
-            padding: 10px 14px; /* Larger touch target */
+            padding: 10px 12px;
             font-size: 14px;
             font-weight: 500;
         }
-
         .tool-btn.active {
             background-color: #555;
             color: white;
             border-radius: 9px;
+            font-weight: bold;
         }
 
-        /* Size Indicators */
+        /* Size Dots */
         .size-dot {
             background-color: currentColor;
             border-radius: 50%;
             display: inline-block;
         }
 
-        /* Action Buttons (Save, Clear) */
+        /* Action Buttons */
         .action-btn {
-            flex: 1; /* Make them share full width */
+            flex: 1;
             padding: 14px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        
-        .btn-clear { background-color: #444; color: #ff6b6b; }
+        .btn-clear { background-color: #3a3a3a; color: #ff6b6b; }
         .btn-save { background-color: #007AFF; color: white; }
 
     </style>
@@ -162,11 +147,11 @@
     </div>
 
     <div class="toolbar">
-        
         <div class="row scroll-row">
             <div class="color-btn active" style="background-color: #000000;" data-color="#000000"></div>
             <div class="color-btn" style="background-color: #FF3B30;" data-color="#FF3B30"></div>
-            <div class="color-btn" style="background-color: #FF9500;" data-color="#FF9500"></div> <div class="color-btn" style="background-color: #FFCC00;" data-color="#FFCC00"></div>
+            <div class="color-btn" style="background-color: #FF9500;" data-color="#FF9500"></div>
+            <div class="color-btn" style="background-color: #FFCC00;" data-color="#FFCC00"></div>
             <div class="color-btn" style="background-color: #34C759;" data-color="#34C759"></div>
             <div class="color-btn" style="background-color: #007AFF;" data-color="#007AFF"></div>
             <div class="color-btn" style="background-color: #AF52DE;" data-color="#AF52DE"></div>
@@ -181,7 +166,8 @@
 
             <div class="tool-group">
                 <button class="tool-btn active" onclick="setBrushStyle('round')">Pen</button>
-                <button class="tool-btn" onclick="setBrushStyle('marker')">Ink</button>
+                <button class="tool-btn" onclick="setBrushStyle('calligraphy')" title="Diagonal Line">Nib</button>
+                <button class="tool-btn" onclick="setBrushStyle('marker')" title="Transparent">Ink</button>
             </div>
             
              <div class="tool-group">
@@ -190,8 +176,8 @@
         </div>
 
         <div class="row">
-            <button class="action-btn btn-clear" onclick="clearCanvas()">Clear</button>
-            <button class="action-btn btn-save" onclick="saveImage()">Save</button>
+            <button id="clearBtn" class="action-btn btn-clear">CLEAR</button>
+            <button class="action-btn btn-save" onclick="saveImage()">SAVE</button>
         </div>
     </div>
 
@@ -204,60 +190,53 @@
         let lastX = 0;
         let lastY = 0;
         
+        // Default Settings
         let currentSize = 10;
         let currentColor = '#000000';
-        let currentLineCap = 'round'; 
-        let isMarkerMode = false;
+        let brushType = 'round'; // round, calligraphy, marker
         let isEraser = false;
 
-        function resizeCanvas() {
-            // Create a temporary canvas to hold the image
-            let tempCanvas = document.createElement('canvas');
-            let tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            tempCtx.drawImage(canvas, 0, 0);
-
-            // Resize actual canvas
+        // --- Setup & Resize ---
+        function initCanvas() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-            
-            // Refill background
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Put image back
-            ctx.drawImage(tempCanvas, 0, 0);
         }
 
-        // Initialize
-        window.onload = function() {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        };
-        
-        // Listen for resize (orientation change)
+        window.addEventListener('load', initCanvas);
         window.addEventListener('resize', () => {
-             // Small delay to let the browser layout settle
-             setTimeout(resizeCanvas, 100);
+            // Simple debounce to prevent lagging while resizing window
+            setTimeout(() => {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(tempCanvas, 0, 0);
+            }, 100);
         });
 
-        // --- Drawing Logic ---
+        // --- Input Handling ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            // Touch
+            let clientX, clientY;
+            
             if (e.touches && e.touches.length > 0) {
-                return {
-                    x: e.touches[0].clientX - rect.left,
-                    y: e.touches[0].clientY - rect.top
-                };
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
             }
-            // Mouse
             return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: clientX - rect.left,
+                y: clientY - rect.top
             };
         }
 
@@ -279,25 +258,70 @@
             if(e.cancelable) e.preventDefault(); 
 
             const pos = getPos(e);
-
-            ctx.lineWidth = currentSize;
-            ctx.lineCap = currentLineCap; 
-            ctx.lineJoin = 'round'; 
-
+            
+            // Context settings based on mode
             if (isEraser) {
-                ctx.strokeStyle = "#FFFFFF";
-                ctx.globalAlpha = 1.0;
                 ctx.globalCompositeOperation = 'source-over';
-            } else {
-                ctx.strokeStyle = currentColor;
-                ctx.globalAlpha = isMarkerMode ? 0.05 : 1.0; 
-                ctx.globalCompositeOperation = isMarkerMode ? 'multiply' : 'source-over';
-            }
+                ctx.strokeStyle = "#FFFFFF";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.globalAlpha = 1.0;
+                ctx.lineWidth = currentSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
 
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
+            } else {
+                // Set Color & Opacity
+                ctx.fillStyle = currentColor;
+                ctx.strokeStyle = currentColor;
+
+                if (brushType === 'marker') {
+                    ctx.globalCompositeOperation = 'multiply'; // Layers colors
+                    ctx.globalAlpha = 0.2; // INCREASED VISIBILITY
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.globalAlpha = 1.0;
+                }
+
+                // --- Drawing Logic per Brush Type ---
+                
+                if (brushType === 'calligraphy') {
+                    // Custom Logic for Diagonal Calligraphy Nib
+                    // We draw a polygon connecting the previous diagonal to the new diagonal
+                    const angle = -45 * (Math.PI / 180); // Fixed 45 degree angle
+                    const halfW = currentSize; // Thickness
+                    
+                    const dx = Math.cos(angle) * halfW;
+                    const dy = Math.sin(angle) * halfW;
+
+                    ctx.beginPath();
+                    // 1. Start at previous top-left
+                    ctx.moveTo(lastX - dx, lastY - dy);
+                    // 2. Go to new top-left
+                    ctx.lineTo(pos.x - dx, pos.y - dy);
+                    // 3. Go to new bottom-right
+                    ctx.lineTo(pos.x + dx, pos.y + dy);
+                    // 4. Go to previous bottom-right
+                    ctx.lineTo(lastX + dx, lastY + dy);
+                    ctx.closePath();
+                    ctx.fill();
+
+                } else {
+                    // Standard Round Pen or Marker
+                    ctx.lineWidth = currentSize;
+                    ctx.lineCap = brushType === 'marker' ? 'round' : 'round';
+                    ctx.lineJoin = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                }
+            }
 
             lastX = pos.x;
             lastY = pos.y;
@@ -307,17 +331,19 @@
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
         
         canvas.addEventListener('touchstart', startDrawing, { passive: false });
         canvas.addEventListener('touchmove', draw, { passive: false });
         canvas.addEventListener('touchend', stopDrawing);
 
-        // --- Tools Logic ---
+        // --- Button Logic ---
+        
+        // 1. Colors
         document.querySelectorAll('.color-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 isEraser = false;
                 document.getElementById('eraserBtn').classList.remove('active');
-                
                 currentColor = this.getAttribute('data-color');
                 
                 document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
@@ -325,53 +351,48 @@
             });
         });
 
-        function setLineWidth(size) {
-            currentSize = size;
-            // Visual Update
-            const btns = document.querySelectorAll('button[onclick^="setLineWidth"]');
-            btns.forEach(b => b.classList.remove('active'));
-            // Find button that matches this size call (simple check)
-            btns.forEach(b => {
-                if(b.getAttribute('onclick').includes(size)) b.classList.add('active');
-            });
-        }
+        // 2. Clear Canvas (Direct Event Listener)
+        document.getElementById('clearBtn').addEventListener('click', () => {
+             // Removed "confirm" dialog to fix mobile issues
+             ctx.fillStyle = "#FFFFFF";
+             ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
 
-        function setBrushStyle(style) {
-            isMarkerMode = false;
-            if (style === 'round') {
-                currentLineCap = 'round';
-            } else if (style === 'marker') {
-                currentLineCap = 'round';
-                isMarkerMode = true;
-            }
-            
-            const btns = document.querySelectorAll('button[onclick^="setBrushStyle"]');
-            btns.forEach(b => b.classList.remove('active'));
-            btns.forEach(b => {
-                if(b.getAttribute('onclick').includes(style)) b.classList.add('active');
-            });
-
-            if(isEraser) toggleEraser();
-        }
-
-        function toggleEraser() {
-            isEraser = !isEraser;
-            const btn = document.getElementById('eraserBtn');
-            btn.classList.toggle('active', isEraser);
-        }
-
-        function clearCanvas() {
-            if (confirm('Clear entire drawing?')) {
-                ctx.fillStyle = "#FFFFFF";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-        }
-
-        function saveImage() {
+        // 3. Save Image
+        window.saveImage = function() {
             const link = document.createElement('a');
-            link.download = 'art_' + Date.now() + '.jpg';
+            link.download = 'art_' + new Date().getTime() + '.jpg';
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
+        }
+
+        // 4. Tool Helpers
+        window.setLineWidth = function(size) {
+            currentSize = size;
+            updateActiveButton('setLineWidth', size);
+        }
+
+        window.setBrushStyle = function(style) {
+            brushType = style;
+            if(isEraser) toggleEraser(); // Turn off eraser if switching brush
+            updateActiveButton('setBrushStyle', style);
+        }
+
+        window.toggleEraser = function() {
+            isEraser = !isEraser;
+            document.getElementById('eraserBtn').classList.toggle('active', isEraser);
+        }
+
+        // Helper to update UI classes
+        function updateActiveButton(funcName, val) {
+            const btns = document.querySelectorAll(`button[onclick^="${funcName}"]`);
+            btns.forEach(b => b.classList.remove('active'));
+            btns.forEach(b => {
+                if(b.getAttribute('onclick').includes(`'${val}'`) || 
+                   b.getAttribute('onclick').includes(`(${val})`)) {
+                    b.classList.add('active');
+                }
+            });
         }
     </script>
 </body>
